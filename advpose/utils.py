@@ -24,3 +24,8 @@ def getLogDir(root_dir=None):
         datetime.now().strftime('%b%d_%H-%M-%S') +
         '_' + socket.gethostname())
     return log_dir
+
+def makeCkptDir(log_dir):
+    ckpt_dir = os.path.join(log_dir, 'ckpts')
+    os.mkdir(ckpt_dir)
+    return ckpt_dir
