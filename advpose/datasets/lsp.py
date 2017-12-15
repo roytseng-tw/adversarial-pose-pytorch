@@ -95,10 +95,8 @@ class LSPMPIIData(torch.utils.data.Dataset):
             # Color jitter
             im = np.clip(im * np.random.uniform(0.6, 1.4, size=3), 0, 1)
         # Prepare image
-        try:
-            im = utils.crop(im, c, s, r, self.inp_res)
-        except ValueError:
-            print('*****', self.annot['imgname'][index], c, s, r)
+        im = utils.crop(im, c, s, r, self.inp_res)
+
         if im.ndim == 2:
             im = np.tile(im, [1, 1, 3])
 
