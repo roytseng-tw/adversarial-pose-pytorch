@@ -1,3 +1,5 @@
+import os
+import tqdm
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
@@ -7,18 +9,27 @@ import opts
 from models.hg import HourglassNet
 from models.dis import HourglassDisNet
 from datasets.lsp import LSPMPIIData
-from utils import getValue, getLogDir
+from utils import getValue, getLogDir, makeCkptDir
 from evals import accuracy
 
-epoch_init = 0
-iter_init = 0
-global_step = 0
+# Parse arguments
 FLAGS = opts.get_args()
 
-dataset = LSPMPIIData('../data', split='train')
+epoch_init = FLAGS.epoch_init
+iter_init = FLAGS.iter_init
+global_step = FLAGS.step_init  # for summary writer (will start on 1)
+
+# Prepare dataset
+dataset = LSPMPIIData(
+    FLAGS.dataDir, split='train',
+    inp_res=FLAGS.inputRes, out_res=FLAGS.outputRes,
+    scale_factor=FLAGS.scale, rot_factor=FLAGS.rotate, sigma=FLAGS.hmSigma)
 dataloader = torch.utils.data.DataLoader(
     dataset, batch_size=FLAGS.batchSize, shuffle=True,
     num_workers=FLAGS.nThreads, pin_memory=True)
+
+print('Number of training samples: %d' % len(dataset))
+print('Number of training batches per epoch: %d' % len(dataloader))
 
 netHg = HourglassNet(
     nStack=FLAGS.nStack, nModules=FLAGS.nModules, nFeat=FLAGS.nFeats,
@@ -26,6 +37,10 @@ netHg = HourglassNet(
 netD = HourglassDisNet(
     nStack=FLAGS.nStack, nModules=FLAGS.nModules, nFeat=FLAGS.nFeats,
     nClasses=dataset.nClasses, inplanes=3+dataset.nClasses)
+# make parallel (identity op if cpu)
+netHg = nn.DataParallel(netHg)
+netD = nn.DataParallel(netD)
+
 criterion = nn.MSELoss()
 criterion_D = nn.MSELoss()
 
@@ -34,7 +49,11 @@ kt = FLAGS.kt_init
 optimHg = torch.optim.RMSprop(netHg.parameters(), lr=FLAGS.lr, alpha=FLAGS.alpha)
 optimD = torch.optim.Adam(netD.parameters(), lr=FLAGS.lrD, betas=(0.9, 0.999))
 
-# TODO: restore model, optim, hyperparameter ...
+# TODO: restoring: model, optim, hyperparameter ...
+if FLAGS.modelCkpt:
+    ckpt = torch.load(FLAGS.modelCkpt, map_location=lambda storage, loc: storage)
+    netHg.load_state_dict(ckpt['netHg'])
+    netD.load_state_dict(ckpt['netD'])
 # if FLAGS.netHg:
 #     pass
 # if FLAGS.netD:
@@ -42,9 +61,6 @@ optimD = torch.optim.Adam(netD.parameters(), lr=FLAGS.lrD, betas=(0.9, 0.999))
 
 if FLAGS.cuda:
     torch.backends.cudnn.benchmark = True
-    # make parallel
-    netHg = nn.DataParallel(netHg)
-    netD = nn.DataParallel(netD)
     netHg.cuda()
     netD.cuda()
     criterion.cuda()
@@ -52,15 +68,18 @@ if FLAGS.cuda:
 
 # TODO: network arch summary
 # print('    Total params of netHg: %.2fM' % (sum(p.numel() for p in netHg.parameters())/1000000.0))
-# exit()
 
-sumWriter = SummaryWriter(getLogDir('../runs'))
+log_dir = getLogDir('../runs')
+sumWriter = SummaryWriter(log_dir)
+ckpt_dir = makeCkptDir(log_dir)
 
 def run(epoch):
     global kt, global_step
-    for it, sample in enumerate(dataloader):
+    pbar = tqdm.tqdm(dataloader, desc='Epoch %02d' % epoch, dynamic_ncols=True)
+    pbar_info = tqdm.tqdm(None, bar_format='{bar}{postfix}')
+    avg_acc = 0
+    for it, sample in enumerate(pbar, start=iter_init):
         global_step += 1
-        print('iter:', it)
         image, label, image_s = sample
         image = Variable(image)
         label = Variable(label)
@@ -94,9 +113,10 @@ def run(epoch):
         optimD.step()
         optimHg.zero_grad()
         loss_hg.backward()
+        # optimD.step()
         optimHg.step()
 
-        ''' Backward all at once (slightly different) '''
+        ''' Backward all at once (slightly different ?) '''
         # loss_total = loss_d + loss_hg
         # optimD.zero_grad()
         # optimHg.zero_grad()
@@ -121,19 +141,40 @@ def run(epoch):
         sumWriter.add_scalar('loss_hg_content', loss_hg_content, global_step)
         sumWriter.add_scalar('loss_hg', loss_hg, global_step)
         sumWriter.add_scalar('kt', kt, global_step)
+        sumWriter.add_scalar('balance', balance, global_step)
         sumWriter.add_scalar('meauser', measure, global_step)
         sumWriter.add_scalar('acc', accs[0], global_step)
+        # TODO: learning rate scheduling
         # sumWriter.add_scalar('lr', lr, global_step)
 
-def save(epoch, ):
-    torch.save({
-        'netD': netD.state_dict(),
-        'netHg': netHg.state_dict()
-    }, 'model_ep{}.pth'.format(epoch))
+        pbar_info.set_postfix({
+            'balance': balance,
+            'loss_hg': getValue(loss_hg),
+            'loss_d': getValue(loss_d),
+            'acc': accs[0],
+        })
+        pbar_info.update()
+        # pbar.write('hello %d\r' % it, end='')
+        avg_acc += accs[0] / len(dataloader)
+    pbar_info.set_postfix_str('avg_acc: {}'.format(avg_acc))
+    pbar.close()
+    pbar_info.close()
+
+
+def save(epoch):
+    torch.save(
+        {'netD': netD.state_dict(),
+         'netHg': netHg.state_dict(),
+         'kt': kt},
+        os.path.join(ckpt_dir, 'model_ep{}.pth'.format(epoch)))
+
 
 if __name__ == '__main__':
+    import warnings
+    warnings.filterwarnings("ignore")  # suppress skimage warning ('constant' change to 'reflect' in 0.15)
     netD.train()
     netHg.train()
-    for ep in range(epoch_init, FLAGS.nEpochs):
+    save('_init')
+    for ep in range(epoch_init, FLAGS.maxEpoch):
         run(ep)
-        # save(ep)
+        save(ep)

@@ -4,13 +4,15 @@ import torch
 
 parser = argparse.ArgumentParser()
 
+# General options
 parser.add_argument('--cpu', action='store_false', dest='cuda')
-parser.add_argument('--nThreads', type=int, default=8)
+parser.add_argument('--nThreads', type=int, default=4)
 
 # Model options
 parser.add_argument('--nStack', type=int, default=4)
 parser.add_argument('--nFeats', type=int, default=256)
 parser.add_argument('--nModules', type=int, default=2)
+parser.add_argument('--modelCkpt', help='Path to the checkpoint file to load')
 
 # Hyperparameters
 parser.add_argument('--lr', type=float, default=2.5e-4)
@@ -23,8 +25,19 @@ parser.add_argument('--gamma', type=float, default=0.5, help='Balance weight of 
 parser.add_argument('--kt_init', type=float, default=0.0, help='Balance weight of real and fake')
 
 # Training
-parser.add_argument('--nEpochs', type=int, default=100)
+parser.add_argument('--maxEpoch', type=int, default=100)
 parser.add_argument('--batchSize', type=int, default=4)
+parser.add_argument('--epoch_init', type=int, default=0)
+parser.add_argument('--iter_init', type=int, default=0)
+parser.add_argument('--step_init', type=int, default=0)
+
+# Data options
+parser.add_argument('--dataDir', default='../data')
+parser.add_argument('--inputRes', type=int, default=256)
+parser.add_argument('--outputRes', type=int, default=64)
+parser.add_argument('--scale', type=float, default=0.25)
+parser.add_argument('--rotate', type=float, default=30)
+parser.add_argument('--hmSigma', type=float, default=1, help='Heatmap gaussian size')
 
 
 def get_args():
