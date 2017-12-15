@@ -154,3 +154,4 @@ venv.bak/
 
 runs/
 data/
+**/codetest/
