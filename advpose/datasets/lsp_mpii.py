@@ -21,7 +21,7 @@ def rand():
 class LSPMPIIData(torch.utils.data.Dataset):
     def __init__(self, data_root, split,
                  inp_res=256, out_res=64, sigma=1, label_type='Gaussian',
-                 scale_factor=0.25, rot_factor=30):
+                 scale_factor=0.25, rot_factor=30, meta=False):
         self.data_root = data_root
         self.split = split
         self.inp_res = inp_res
@@ -30,10 +30,11 @@ class LSPMPIIData(torch.utils.data.Dataset):
         self.label_type = label_type
         self.scale_factor = scale_factor
         self.rot_factor = rot_factor
+        self.meta = meta
 
         self.nJoints = 16
         self.nClasses = self.nJoints
-        self.accIdxs = [1, 2, 3, 4, 5, 6, 11, 12, 15, 16]  # joint idxs for accuracy calculation
+        self.accIdxs = [0, 1, 2, 3, 4, 5, 10, 11, 14, 15]  # joint idxs for accuracy calculation
         self.flipRef = [[0, 5],   [1, 4],   [2, 3],   # noqa
                         [10, 15], [11, 14], [12, 13]]
         # Pairs of joints for drawing skeleton
@@ -56,8 +57,8 @@ class LSPMPIIData(torch.utils.data.Dataset):
         allIdxs = np.arange(len(self.annot['istrain']))
         self.idxRef = {
             'train': allIdxs[self.annot['istrain'] == 1],
-            'val': allIdxs[self.annot['istrain'] == 2],
-            'test': allIdxs[self.annot['istrain'] == 0]
+            'val': allIdxs[self.annot['istrain'] == 2],  # test of LSP
+            'test': allIdxs[self.annot['istrain'] == 0]  # test of MPII
         }
 
     def _getPartInfo(self, index):
@@ -116,8 +117,11 @@ class LSPMPIIData(torch.utils.data.Dataset):
                     labels.shape[1:],
                     new_pts[i],
                     self.sigma)
-
-        return im.astype(np.float32), labels.astype(np.float32), im_s.astype(np.float32)
+        if not self.meta:
+            return im.astype(np.float32), labels.astype(np.float32), im_s.astype(np.float32)
+        else:
+            meta = [pts, c, s, r]
+            return im.astype(np.float32), labels.astype(np.float32), im_s.astype(np.float32), meta
 
     def __len__(self):
         return len(self.idxRef[self.split])
