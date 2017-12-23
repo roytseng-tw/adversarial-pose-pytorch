@@ -1,16 +1,18 @@
 import os
+import sys
 import tqdm
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
-
 from tensorboardX import SummaryWriter
+
 import opts
-from models.hg import HourglassNet
-from models.dis import HourglassDisNet
-from datasets.lsp import LSPMPIIData
-from utils import getValue, getLogDir, makeCkptDir
-from evals import accuracy
+sys.path.insert(0, '..')
+from src.models.hg import HourglassNet
+from src.models.dis import HourglassDisNet
+from src.datasets.lsp_mpii import LSPMPII_Dataset
+from src.utils.misc import getValue, getLogDir, makeCkptDir
+from src.utils.evals import accuracy
 
 # Parse arguments
 FLAGS = opts.get_args()
@@ -20,7 +22,7 @@ iter_init = FLAGS.iter_init
 global_step = FLAGS.step_init  # for summary writer (will start on 1)
 
 # Prepare dataset
-dataset = LSPMPIIData(
+dataset = LSPMPII_Dataset(
     FLAGS.dataDir, split='train',
     inp_res=FLAGS.inputRes, out_res=FLAGS.outputRes,
     scale_factor=FLAGS.scale, rot_factor=FLAGS.rotate, sigma=FLAGS.hmSigma)
@@ -69,14 +71,14 @@ if FLAGS.cuda:
 # TODO: network arch summary
 # print('    Total params of netHg: %.2fM' % (sum(p.numel() for p in netHg.parameters())/1000000.0))
 
-log_dir = getLogDir('../runs')
+log_dir = getLogDir('runs')
 sumWriter = SummaryWriter(log_dir)
 ckpt_dir = makeCkptDir(log_dir)
 
 def run(epoch):
     global kt, global_step
     pbar = tqdm.tqdm(dataloader, desc='Epoch %02d' % epoch, dynamic_ncols=True)
-    pbar_info = tqdm.tqdm(None, bar_format='{bar}{postfix}')
+    pbar_info = tqdm.tqdm(None, bar_format='{bar}{postfix}')  # showing info on the second line
     avg_acc = 0
     for it, sample in enumerate(pbar, start=iter_init):
         global_step += 1
@@ -134,7 +136,7 @@ def run(epoch):
 
         accs = accuracy(outputs[-1].data.cpu(), label.data.cpu(), dataset.accIdxs)
 
-        # TODO: summary, printing (maybe tqdm)
+        # summary
         sumWriter.add_scalar('loss_d_real', loss_d_real_, global_step)
         sumWriter.add_scalar('loss_d_fake', loss_d_fake_, global_step)
         sumWriter.add_scalar('loss_d', loss_d, global_step)
@@ -154,7 +156,7 @@ def run(epoch):
             'acc': accs[0],
         })
         pbar_info.update()
-        # pbar.write('hello %d\r' % it, end='')
+
         avg_acc += accs[0] / len(dataloader)
     pbar_info.set_postfix_str('avg_acc: {}'.format(avg_acc))
     pbar.close()

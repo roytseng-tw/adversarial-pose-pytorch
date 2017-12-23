@@ -8,9 +8,9 @@ import skimage.transform as sktf
 import torch
 import torch.utils.data
 if __name__ == '__main__':
-    import sys
-    sys.path.insert(0, '..')
-from datasets import utils
+    import utils
+else:
+    from . import utils
 
 def randn():
     return random.gauss(0, 1)
@@ -18,10 +18,10 @@ def rand():
     return random.random()
 
 
-class LSPMPIIData(torch.utils.data.Dataset):
+class LSPMPII_Dataset(torch.utils.data.Dataset):
     def __init__(self, data_root, split,
                  inp_res=256, out_res=64, sigma=1, label_type='Gaussian',
-                 scale_factor=0.25, rot_factor=30, meta=False):
+                 scale_factor=0.25, rot_factor=30, return_meta=False):
         self.data_root = data_root
         self.split = split
         self.inp_res = inp_res
@@ -30,14 +30,14 @@ class LSPMPIIData(torch.utils.data.Dataset):
         self.label_type = label_type
         self.scale_factor = scale_factor
         self.rot_factor = rot_factor
-        self.meta = meta
+        self.return_meta = return_meta
 
         self.nJoints = 16
         self.nClasses = self.nJoints
         self.accIdxs = [0, 1, 2, 3, 4, 5, 10, 11, 14, 15]  # joint idxs for accuracy calculation
         self.flipRef = [[0, 5],   [1, 4],   [2, 3],   # noqa
                         [10, 15], [11, 14], [12, 13]]
-        # Pairs of joints for drawing skeleton
+        # Pairs of joints for drawing skeleton (index still starts from 1)
         self.skeletonRef = [[1, 2, 1],   [2, 3, 1],   [4, 5, 2],  # noqa
                             [5, 6, 2],   [9, 10, 0],  [13, 9, 3], # noqa
                             [11, 12, 3], [12, 13, 3], [14, 9, 4],
@@ -117,7 +117,7 @@ class LSPMPIIData(torch.utils.data.Dataset):
                     labels.shape[1:],
                     new_pts[i],
                     self.sigma)
-        if not self.meta:
+        if not self.return_meta:
             return im.astype(np.float32), labels.astype(np.float32), im_s.astype(np.float32)
         else:
             meta = [pts, c, s, r]
@@ -130,7 +130,7 @@ class LSPMPIIData(torch.utils.data.Dataset):
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
 
-    dataset = LSPMPIIData('/home/roytseng/study/pose/adversarial-pose-pytorch/data', 'train')
+    dataset = LSPMPII_Dataset('/home/roytseng/study/pose/adversarial-pose-pytorch/data', 'train')
     im, label, im_s = dataset[39605]
     plt.imshow(np.transpose(im, [1, 2, 0]))
     plt.show()

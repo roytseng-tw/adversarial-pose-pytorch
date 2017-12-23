@@ -1,5 +1,7 @@
 import torch
 
+#TODO： torch to numpy
+
 def get_preds(scores):
     ''' get predictions from score maps in torch Tensor
         return type: torch.LongTensor
@@ -8,12 +10,12 @@ def get_preds(scores):
     maxval, idx = torch.max(scores.view(scores.size(0), scores.size(1), -1), 2)
 
     maxval = maxval.view(scores.size(0), scores.size(1), 1)
-    idx = idx.view(scores.size(0), scores.size(1), 1) + 1
+    idx = idx.view(scores.size(0), scores.size(1), 1)
 
     preds = idx.repeat(1, 1, 2).float()
 
-    preds[:, :, 0] = (preds[:, :, 0] - 1) % scores.size(3) + 1
-    preds[:, :, 1] = torch.floor((preds[:, :, 1] - 1) / scores.size(3)) + 1
+    preds[:, :, 0] = preds[:, :, 0] % scores.size(3)
+    preds[:, :, 1] = torch.floor(preds[:, :, 1] / scores.size(3)) + 1
 
     pred_mask = maxval.gt(0).repeat(1, 1, 2).float()
     preds *= pred_mask
@@ -25,7 +27,7 @@ def calc_dists(preds, target, normalize):
     dists = torch.zeros(preds.size(1), preds.size(0))
     for n in range(preds.size(0)):
         for c in range(preds.size(1)):
-            if target[n, c, 0] > 1 and target[n, c, 1] > 1:
+            if target[n, c, 0] > 0 and target[n, c, 1] > 0:
                 dists[c, n] = torch.dist(preds[n, c, :], target[n, c, :])/normalize[n]
             else:
                 dists[c, n] = -1
@@ -52,7 +54,7 @@ def accuracy(output, target, idxs, thr=0.5):
     cnt = 0
 
     for i in range(len(idxs)):
-        acc[i+1] = dist_acc(dists[idxs[i]-1])
+        acc[i+1] = dist_acc(dists[idxs[i]])
         if acc[i+1] >= 0:
             avg_acc = avg_acc + acc[i+1]
             cnt += 1
@@ -71,6 +73,7 @@ if __name__ == '__main__':
     import warnings
     warnings.filterwarnings("ignore")
     from datasets.lsp import LSPMPIIData
-    dataset = LSPMPIIData('../data', split='train')
-    image, label, _ = dataset[0]
+    dataset = LSPMPIIData('../data', split='train', meta=True)
+    image, label, _, meta = dataset[0]
     print(accuracy(torch.Tensor(label).unsqueeze(0), torch.Tensor(label).unsqueeze(0), dataset.accIdxs))
+    print(meta)
