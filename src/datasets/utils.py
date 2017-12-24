@@ -1,6 +1,20 @@
+import random
 import numpy as np
 import skimage.transform as sktf
 import matplotlib.pyplot as plt
+
+
+""" Random """
+def randn():
+    return random.gauss(0, 1)
+
+def rand():
+    return random.random()
+
+def rnd(x):
+    '''umich hourglass mpii random function'''
+    return max(-2 * x, min(2 * x, randn() * x))
+
 
 """ Visualization """
 def show_sample(img, label):  # FIXME: color blending is not right, diff color for each joint
@@ -17,6 +31,7 @@ def show_sample(img, label):  # FIXME: color blending is not right, diff color f
         # plt.imshow(label[i])
         # plt.show()
     return np.transpose(new_img, [1, 2, 0])
+
 
 """ Label """
 def create_label(imsize, pt, sigma, distro_type='Gaussian'):
