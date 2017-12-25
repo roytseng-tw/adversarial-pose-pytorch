@@ -37,7 +37,7 @@ valid_loader = torch.utils.data.DataLoader(
     num_workers=FLAGS.nThreads, pin_memory=True)
 
 netHg = HourglassNet(
-    nStack=FLAGS.nStack, nModules=FLAGS.nModules, nFeat=FLAGS.nFeats,
+    nStacks=FLAGS.nStacks, nModules=FLAGS.nModules, nFeat=FLAGS.nFeats,
     nClasses=train_set.nJoints)  # ref `nClasses` from dataset
 criterion = nn.MSELoss()
 

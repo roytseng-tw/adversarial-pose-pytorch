@@ -2,8 +2,8 @@ import torch.nn as nn
 from .hg import HourglassNet, HgResBlock
 
 class HourglassDisNet(HourglassNet):
-    def __init__(self, nStack, nModules, nFeat, nClasses, resBlock=HgResBlock, inplanes=3):
-        super().__init__(nStack, nModules, nFeat, nClasses, resBlock, inplanes)
+    def __init__(self, nStacks, nModules, nFeat, nClasses, resBlock=HgResBlock, inplanes=3):
+        super().__init__(nStacks, nModules, nFeat, nClasses, resBlock, inplanes)
 
     def _make_head(self):
         self.conv1 = nn.Conv2d(self.inplanes, 64, 3, 1, 1)
@@ -23,12 +23,12 @@ class HourglassDisNet(HourglassNet):
         x = self.res2(x)
         x = self.res3(x)
 
-        for i in range(self.nStack):
+        for i in range(self.nStacks):
             y = self.hg[i](x)
             y = self.res[i](y)
             y = self.fc[i](y)
             score = self.score[i](y)
-            if i < (self.nStack - 1):
+            if i < (self.nStacks - 1):
                 fc_ = self.fc_[i](y)
                 score_ = self.score_[i](score)
                 x = x + fc_ + score_

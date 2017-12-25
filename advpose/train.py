@@ -34,10 +34,10 @@ print('Number of training samples: %d' % len(dataset))
 print('Number of training batches per epoch: %d' % len(dataloader))
 
 netHg = HourglassNet(
-    nStack=FLAGS.nStack, nModules=FLAGS.nModules, nFeat=FLAGS.nFeats,
+    nStacks=FLAGS.nStacks, nModules=FLAGS.nModules, nFeat=FLAGS.nFeats,
     nClasses=dataset.nClasses)  # ref `nClasses` from dataset
 netD = HourglassDisNet(
-    nStack=FLAGS.nStack, nModules=FLAGS.nModules, nFeat=FLAGS.nFeats,
+    nStacks=FLAGS.nStacks, nModules=FLAGS.nModules, nFeat=FLAGS.nFeats,
     nClasses=dataset.nClasses, inplanes=3+dataset.nClasses)
 # make parallel (identity op if cpu)
 netHg = nn.DataParallel(netHg)

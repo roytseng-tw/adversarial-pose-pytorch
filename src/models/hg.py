@@ -44,9 +44,9 @@ class Hourglass(nn.Module):
 
 class HourglassNet(nn.Module):
     '''Hourglass model from Newell et al ECCV 2016'''
-    def __init__(self, nStack, nModules, nFeat, nClasses, resBlock=HgResBlock, inplanes=3):
+    def __init__(self, nStacks, nModules, nFeat, nClasses, resBlock=HgResBlock, inplanes=3):
         super().__init__()
-        self.nStack = nStack
+        self.nStacks = nStacks
         self.nModules = nModules
         self.nFeat = nFeat
         self.nClasses = nClasses
@@ -56,12 +56,12 @@ class HourglassNet(nn.Module):
         self._make_head()
 
         hg, res, fc, score, fc_, score_ = [], [], [], [], [], []
-        for i in range(nStack):
+        for i in range(nStacks):
             hg.append(Hourglass(4, nFeat, nModules, resBlock))
             res.append(self._make_residual(nModules))
             fc.append(self._make_fc(nFeat, nFeat))
             score.append(nn.Conv2d(nFeat, nClasses, 1))
-            if i < (nStack - 1):
+            if i < (nStacks - 1):
                 fc_.append(nn.Conv2d(nFeat, nFeat, 1))
                 score_.append(nn.Conv2d(nClasses, nFeat, 1))
         self.hg = nn.ModuleList(hg)
@@ -101,13 +101,13 @@ class HourglassNet(nn.Module):
         x = self.res3(x)
 
         out = []
-        for i in range(self.nStack):
+        for i in range(self.nStacks):
             y = self.hg[i](x)
             y = self.res[i](y)
             y = self.fc[i](y)
             score = self.score[i](y)
             out.append(score)
-            if i < (self.nStack - 1):
+            if i < (self.nStacks - 1):
                 fc_ = self.fc_[i](y)
                 score_ = self.score_[i](score)
                 x = x + fc_ + score_

@@ -10,7 +10,7 @@ parser.add_argument('--nThreads', type=int, default=4)
 parser.add_argument('--log_root', default='runs')
 
 # Model options
-parser.add_argument('--nStack', type=int, default=4)
+parser.add_argument('--nStacks', type=int, default=4)
 parser.add_argument('--nFeats', type=int, default=256)
 parser.add_argument('--nModules', type=int, default=2)
 parser.add_argument('--modelCkpt', help='Path to the checkpoint file to load')
