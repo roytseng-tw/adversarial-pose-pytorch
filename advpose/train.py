@@ -71,16 +71,16 @@ if FLAGS.cuda:
 # TODO: network arch summary
 # print('    Total params of netHg: %.2fM' % (sum(p.numel() for p in netHg.parameters())/1000000.0))
 
-log_dir = getLogDir('runs')
+log_dir = getLogDir(FLAGS.log_root)
 sumWriter = SummaryWriter(log_dir)
 ckpt_dir = makeCkptDir(log_dir)
 
-def run(epoch):
+def run(epoch, iter_start=0):
     global kt, global_step
     pbar = tqdm.tqdm(dataloader, desc='Epoch %02d' % epoch, dynamic_ncols=True)
     pbar_info = tqdm.tqdm(None, bar_format='{bar}{postfix}')  # showing info on the second line
     avg_acc = 0
-    for it, sample in enumerate(pbar, start=iter_init):
+    for it, sample in enumerate(pbar, start=iter_start):
         global_step += 1
         image, label, image_s = sample
         image = Variable(image)
@@ -178,5 +178,6 @@ if __name__ == '__main__':
     netHg.train()
     save('_init')
     for ep in range(epoch_init, FLAGS.maxEpoch):
-        run(ep)
+        run(ep, iter_init)
         save(ep)
+        iter_init = 0  # reset after first epoch

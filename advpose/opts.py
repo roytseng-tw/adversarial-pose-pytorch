@@ -7,6 +7,7 @@ parser = argparse.ArgumentParser()
 # General options
 parser.add_argument('--cpu', action='store_false', dest='cuda')
 parser.add_argument('--nThreads', type=int, default=4)
+parser.add_argument('--log_root', default='runs')
 
 # Model options
 parser.add_argument('--nStack', type=int, default=4)
