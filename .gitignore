@@ -155,3 +155,4 @@ venv.bak/
 runs/
 data/
 **/codetest/
+**/_ext
