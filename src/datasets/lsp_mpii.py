@@ -37,7 +37,7 @@ class LSPMPII_Dataset(torch.utils.data.Dataset):
         self.accIdxs = [0, 1, 2, 3, 4, 5, 10, 11, 14, 15]  # joint idxs for accuracy calculation
         self.flipRef = [[0, 5],   [1, 4],   [2, 3],   # noqa
                         [10, 15], [11, 14], [12, 13]]
-        # Pairs of joints for drawing skeleton (index still starts from 1)
+        # Pairs of joints for drawing skeleton (index starts from 1 or 0 ?)
         self.skeletonRef = [[1, 2, 1],   [2, 3, 1],   [4, 5, 2],  # noqa
                             [5, 6, 2],   [9, 10, 0],  [13, 9, 3], # noqa
                             [11, 12, 3], [12, 13, 3], [14, 9, 4],

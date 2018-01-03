@@ -97,7 +97,7 @@ def fliplr_coords(pts, width, matchedParts):
 
 
 """ Transform, Crop """
-def get_transform(center, scale, rot, res):
+def get_transform(center, scale, rot, res, invert=False):
     '''Prepare transformation matrix (scale, rot).
     '''
     h = 200 * scale
@@ -124,15 +124,15 @@ def get_transform(center, scale, rot, res):
         t_inv = t_mat.copy()
         t_inv[:2, 2] *= -1
         t = np.dot(t_inv, np.dot(rot_mat, np.dot(t_mat, t)))
+    if invert:
+        t = np.linalg.inv(t)
     return t
 
 def transform(pts, center, scale, rot, res, invert=False):
     """ Transform points from original coord to new coord
     pts: 2 * n array
     """
-    t = get_transform(center, scale, rot, [res, res])
-    if invert:
-        t = np.linalg.inv(t)
+    t = get_transform(center, scale, rot, [res, res], invert)
     pts = np.array(pts)
     assert pts.shape[0] == 2, pts.shape
     if pts.ndim == 1:
