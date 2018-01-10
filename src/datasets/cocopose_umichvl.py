@@ -4,6 +4,7 @@ import skimage as skim
 import skimage.io as skio
 import skimage.color as skcolor
 import skimage.transform as sktf
+import cv2
 import torch
 import torch.utils.data
 from pycocotools.coco import COCO
@@ -61,7 +62,7 @@ def get_mask(img_id):
         if ann['iscrowd']:
             rle = mask.frPyObjects(ann['segmentation'], img_info['height'], img_info['width'])
             m += mask.decode(rle)  # mask: {0, 1} unit8
-    return m > 0.5
+    return m < 0.5  # False for crowd, True for non-crowd. 
 
 def get_anns(img_id):
     anns = coco.loadAnns(coco.getAnnIds(imgIds=img_id))
@@ -81,13 +82,11 @@ def get_keypoints(img_id=None, anns=None):
         kps[i] = np.array(anns[i]['keypoints']).reshape(-1, 3)
     return kps
 
-def loadImage(imgId, data_root, split):
+def loadImage(imgId, img_root, split):
         img_info = coco.loadImgs(imgId)[0]
         imgname = img_info['file_name']
-        if '_' in imgname:
-            imgname = imgname.split('_')[-1]
-        return skim.img_as_float(skio.imread(os.path.join(data_root,
-                                 'images/{}2017/{}'.format(split, imgname))))
+        impath = os.path.join(img_root, imgname)
+        return skio.imread(impath)
 
 def kpts_affine(kpts, mat):
     '''Transfrom keypoints
@@ -149,22 +148,25 @@ class FliterKeypoints():
 
 
 class COCOPose_Dataset(torch.utils.data.Dataset):
-    def __init__(self, data_root, split, inp_res, out_res,
-                 sigma, scale_factor=0.25, rot_factor=30, max_num_people=30):
+    def __init__(self, data_root, split, inp_res, out_res, ann_path='annotations/person_keypoints_train2014.json',
+                 scale_factor=0.25, rot_factor=30, max_num_people=30, debug=False):
         self.data_root = data_root
+        self.split = split
         self.inp_res = inp_res
         self.out_res = out_res
-        self.split = split
+        self.ann_path = ann_path
         self.scale_factor = scale_factor
         self.rot_factor = rot_factor
-
-        self.generateHeatmaps = GenerateHeatmaps(out_res, num_parts)
-        self.fliterKeypoints = FliterKeypoints(max_num_people, num_parts)
+        self.max_num_people = max_num_people
+        self.debug = debug
 
         global coco, imgIds_train, imgIds_valid
         if coco is None:
-            init_cocoapi(os.path.join(data_root, 'annotations/person_keypoints_train2014.json'))
+            init_cocoapi(os.path.join(data_root, ann_path))
             imgIds_train, imgIds_valid = setup_train_val_split(os.path.join(data_root, 'valid_id'))
+
+        year = os.path.splitext(ann_path)[0].split('_')[-1][-4:]
+        self.image_folder = os.path.join(data_root, 'images/{}{}'.format(split, year))
 
         if split == 'train':
             self.img_ids = imgIds_train
@@ -173,53 +175,11 @@ class COCOPose_Dataset(torch.utils.data.Dataset):
         else:
             raise ValueError
 
+        self.generateHeatmaps = GenerateHeatmaps(out_res, num_parts)
+        self.fliterKeypoints = FliterKeypoints(max_num_people, num_parts)
+
     def __len__(self):
         return len(self.img_ids)
-
-    def __getitem__(self, index):
-        img_id = self.img_ids[index]
-        im = loadImage(img_id, self.data_root, self.split)
-        loss_mask = get_mask(img_id)
-
-        anns = get_anns(img_id)
-        keypoints = get_keypoints(anns=anns)
-
-        height, width = im.shape[0:2]
-        center = np.array((width/2, height/2))
-        scale = max(height, width) / 200
-
-        rot = (rand() * 2 - 1) * self.rot_factor
-        scale *= (rand() * 2 - 1) * self.scale_factor + 1
-
-        dx = np.random.randint(-40 * scale, 40 * scale) / center[0]
-        dy = np.random.randint(-40 * scale, 40 * scale) / center[1]
-        center[0] += dx * center[0]
-        center[1] += dy * center[1]
-
-        tform = get_transform(center, scale, rot, (self.out_res, self.out_res), invert=True)
-        tform_inv = np.linalg.inv(tform)
-        loss_mask = sktf.warp(loss_mask, tform_inv, output_shape=(self.out_res, self.out_res))
-        loss_mask = (loss_mask > 0.5).astype(np.float32)
-        keypoints[:, :, :2] = kpts_affine(keypoints[:, :, :2], tform[:2])
-
-        tform_inv = get_transform(center, scale, rot, (self.inp_res, self.inp_res), invert=True)
-        im = sktf.warp(im, tform_inv, output_shape=(self.inp_res, self.inp_res))
-
-        # Flip LR
-        if rand() < 0.5:
-            im = im[:, ::-1]
-            loss_mask = loss_mask[:, ::-1]
-            keypoints = keypoints[:, flip_ref]
-            keypoints[:, :, 0] = self.out_res - keypoints[:, :, 0]
-
-        # TODO
-        heatmaps = self.generateHeatmaps(keypoints)
-        keypoints = self.fliterKeypoints(keypoints, self.out_res)
-        im = self.preprocess(im).transpose(2, 0, 1)
-
-        return (im.astype(np.float32),
-                loss_mask.astype(np.float32),
-                keypoints.astype(np.int32), heatmaps.astype(np.float32))
 
     def preprocess(self, data):
         # random hue and saturation
@@ -242,3 +202,60 @@ class COCOPose_Dataset(torch.utils.data.Dataset):
         data = np.minimum(np.maximum(data, 0), 1)
 
         return data
+
+    def __getitem__(self, index):
+        img_id = self.img_ids[index]
+        im = loadImage(img_id, self.image_folder, self.split)
+        if im.ndim == 2:
+            im = np.tile(im[..., np.newaxis], [1, 1, 3])
+
+        loss_mask = get_mask(img_id)
+        anns = get_anns(img_id)
+        keypoints = get_keypoints(anns=anns)
+
+        height, width = im.shape[0:2]
+        center = np.array((width/2, height/2))
+        scale = max(height, width) / 200
+
+        rot = (rand() * 2 - 1) * self.rot_factor
+        scale *= (rand() * 2 - 1) * self.scale_factor + 1
+
+        dx = np.random.randint(-40 * scale, 40 * scale) / center[0]
+        dy = np.random.randint(-40 * scale, 40 * scale) / center[1]
+        center[0] += dx * center[0]
+        center[1] += dy * center[1]
+
+        tform = get_transform(center, scale, rot, (self.out_res, self.out_res))
+        # tform_inv = np.linalg.inv(tform)
+        # loss_mask = sktf.warp(loss_mask, tform_inv, output_shape=(self.out_res, self.out_res))
+        loss_mask = cv2.warpAffine(loss_mask.astype(np.uint8)*255, tform[:2], (self.out_res, self.out_res)) / 255
+        loss_mask = (loss_mask > 0.5).astype(np.float32)
+        keypoints[:, :, :2] = kpts_affine(keypoints[:, :, :2], tform[:2])
+
+        # tform_inv = get_transform(center, scale, rot, (self.inp_res, self.inp_res), invert=True)
+        # im = sktf.warp(im, tform_inv, output_shape=(self.inp_res, self.inp_res))
+        tform = get_transform(center, scale, rot, (self.inp_res, self.inp_res))
+        im = cv2.warpAffine(im, tform[:2], (self.inp_res, self.inp_res)) / 255
+
+        # Flip LR
+        if rand() < 0.5:
+            im = im[:, ::-1]
+            loss_mask = loss_mask[:, ::-1]
+            keypoints = keypoints[:, flip_ref]
+            keypoints[:, :, 0] = self.out_res - keypoints[:, :, 0]
+
+        heatmaps = self.generateHeatmaps(keypoints)
+        keypoints = self.fliterKeypoints(keypoints, self.out_res)  # TODO understand the format, related to the AELoss
+        im = self.preprocess(im).transpose(2, 0, 1)
+
+        if self.debug:
+            return (im.astype(np.float32),
+                    loss_mask.astype(np.float32),
+                    keypoints.astype(np.int32),
+                    heatmaps.astype(np.float32),
+                    img_id)
+        else:
+            return (im.astype(np.float32),
+                    loss_mask.astype(np.float32),
+                    keypoints.astype(np.int32),
+                    heatmaps.astype(np.float32))
