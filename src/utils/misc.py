@@ -21,7 +21,7 @@ def getLogDir(root_dir=None):
         root_dir = 'runs'
     log_dir = os.path.join(
         root_dir,
-        datetime.now().strftime('%b%d_%H-%M-%S') +
+        datetime.now().strftime('%b%d-%H-%M-%S') +
         '_' + socket.gethostname())
     return log_dir
 
