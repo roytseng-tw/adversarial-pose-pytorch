@@ -99,7 +99,7 @@ class LSPMPII_Dataset(torch.utils.data.Dataset):
         im = utils.crop(im, c, s, r, self.inp_res)
 
         if im.ndim == 2:
-            im = np.tile(im, [1, 1, 3])
+            im = np.tile(im[..., np.newaxis], [1, 1, 3])
 
         # small size image
         im_s = sktf.resize(im, [self.out_res, self.out_res], preserve_range=True)
