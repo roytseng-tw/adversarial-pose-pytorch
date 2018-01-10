@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 from functools import partial
 
@@ -11,17 +12,17 @@ class Hourglass(nn.Module):
         self.nModules = nModules
         self.module = module
 
-        nFeats_inc = nFeats + f_inc
+        nFeats_2 = nFeats + f_inc
 
         self.up1 = self._make_modules(nModules, nFeats, nFeats)
 
         self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)
-        self.low1 = self._make_modules(nModules, nFeats, nFeats_inc)
+        self.low1 = self._make_modules(nModules, nFeats, nFeats_2)
         if self.n > 1:  # Recursive
-            self.low2 = Hourglass(n - 1, nFeats_inc, nModules, f_inc, module)
+            self.low2 = Hourglass(n - 1, nFeats_2, nModules, f_inc, module)
         else:
-            self.low2 = self._make_modules(nModules, nFeats_inc, nFeats_inc)
-        self.low3 = self._make_modules(nModules, nFeats_inc, nFeats)
+            self.low2 = self._make_modules(nModules, nFeats_2, nFeats_2)
+        self.low3 = self._make_modules(nModules, nFeats_2, nFeats)
 
         self.up2 = nn.Upsample(scale_factor=2)
 
@@ -60,19 +61,19 @@ class HourglassAENet(nn.Module):
         self.out_nf = out_nf
 
         self.head = nn.Sequential(
-            nn.Conv2d(inplanes, 64, 7, 2, 3), nn.ReLU(inplace=True),
-            nn.Conv2d(64, 128, 3, 1, 1), nn.ReLU(inplace=True),
+            nn.Conv2d(inplanes, 64, 7, 2, 3), nn.ReLU(inplace=False),
+            nn.Conv2d(64, 128, 3, 1, 1), nn.ReLU(inplace=False),
             nn.MaxPool2d(2, 2),
-            nn.Conv2d(128, 128, 3, 1, 1), nn.ReLU(inplace=True),
-            nn.Conv2d(128, 128, 3, 1, 1), nn.ReLU(inplace=True),
-            nn.Conv2d(128, inp_nf, 3, 1, 1), nn.ReLU(inplace=True),
+            nn.Conv2d(128, 128, 3, 1, 1), nn.ReLU(inplace=False),
+            # nn.Conv2d(128, 128, 3, 1, 1), nn.ReLU(inplace=False),  # pose-ae-demo has this
+            nn.Conv2d(128, inp_nf, 3, 1, 1), nn.ReLU(inplace=False),
         )
 
         self.features = nn.ModuleList([
             nn.Sequential(
                 Hourglass(4, inp_nf),
-                nn.Conv2d(inp_nf, inp_nf, 3, padding=1), nn.ReLU(inplace=True),
-                nn.Conv2d(inp_nf, inp_nf, 3, padding=1), nn.ReLU(inplace=True),
+                nn.Conv2d(inp_nf, inp_nf, 3, padding=1), nn.ReLU(inplace=False),
+                nn.Conv2d(inp_nf, inp_nf, 3, padding=1), nn.ReLU(inplace=False),  # pose-ae-demo kernel_size=1
             ) for _ in range(nStacks)])
         self.outs = nn.ModuleList([nn.Conv2d(inp_nf, out_nf, 1) for _ in range(nStacks)])
         self.merge_features = nn.ModuleList([Merge(inp_nf, inp_nf) for _ in range(nStacks - 1)])
@@ -86,4 +87,4 @@ class HourglassAENet(nn.Module):
             preds.append(self.outs[i](feature))
             if i < self.nStacks - 1:
                 x = x + self.merge_preds[i](preds[-1]) + self.merge_features[i](feature)
-        return preds
+        return torch.stack(preds, 1)
