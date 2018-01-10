@@ -1,11 +1,14 @@
 import torch
 import torch.nn as nn
-from functools import partial
 
+
+def conv_module(fin, fout):
+    return [nn.Conv2d(fin, fout, 3, 1, 1),
+            nn.ReLU(inplace=True)]
 
 class Hourglass(nn.Module):
     def __init__(self, n, nFeats, nModules=1, f_inc=128,
-                 module=partial(nn.Conv2d, kernel_size=3, padding=1)):
+                 module=conv_module):
         super().__init__()
         self.n = n
         self.nFeats = nFeats
@@ -61,19 +64,19 @@ class HourglassAENet(nn.Module):
         self.out_nf = out_nf
 
         self.head = nn.Sequential(
-            nn.Conv2d(inplanes, 64, 7, 2, 3), nn.ReLU(inplace=False),
-            nn.Conv2d(64, 128, 3, 1, 1), nn.ReLU(inplace=False),
+            nn.Conv2d(inplanes, 64, 7, 2, 3), nn.ReLU(inplace=True),
+            nn.Conv2d(64, 128, 3, 1, 1), nn.ReLU(inplace=True),
             nn.MaxPool2d(2, 2),
-            nn.Conv2d(128, 128, 3, 1, 1), nn.ReLU(inplace=False),
-            # nn.Conv2d(128, 128, 3, 1, 1), nn.ReLU(inplace=False),  # pose-ae-demo has this
-            nn.Conv2d(128, inp_nf, 3, 1, 1), nn.ReLU(inplace=False),
+            nn.Conv2d(128, 128, 3, 1, 1), nn.ReLU(inplace=True),
+            # nn.Conv2d(128, 128, 3, 1, 1), nn.ReLU(inplace=True),  # pose-ae-demo has this
+            nn.Conv2d(128, inp_nf, 3, 1, 1), nn.ReLU(inplace=True),
         )
 
         self.features = nn.ModuleList([
             nn.Sequential(
                 Hourglass(4, inp_nf),
-                nn.Conv2d(inp_nf, inp_nf, 3, padding=1), nn.ReLU(inplace=False),
-                nn.Conv2d(inp_nf, inp_nf, 3, padding=1), nn.ReLU(inplace=False),  # pose-ae-demo kernel_size=1
+                nn.Conv2d(inp_nf, inp_nf, 3, padding=1), nn.ReLU(inplace=True),
+                nn.Conv2d(inp_nf, inp_nf, 3, padding=1), nn.ReLU(inplace=True),  # pose-ae-demo kernel_size=1
             ) for _ in range(nStacks)])
         self.outs = nn.ModuleList([nn.Conv2d(inp_nf, out_nf, 1) for _ in range(nStacks)])
         self.merge_features = nn.ModuleList([Merge(inp_nf, inp_nf) for _ in range(nStacks - 1)])
