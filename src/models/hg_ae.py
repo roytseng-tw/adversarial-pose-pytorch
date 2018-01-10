@@ -3,8 +3,8 @@ import torch.nn as nn
 
 
 def conv_module(fin, fout):
-    return [nn.Conv2d(fin, fout, 3, 1, 1),
-            nn.ReLU(inplace=True)]
+    return nn.Sequential(nn.Conv2d(fin, fout, 3, 1, 1),
+                         nn.ReLU(inplace=True))
 
 class Hourglass(nn.Module):
     def __init__(self, n, nFeats, nModules=1, f_inc=128,
