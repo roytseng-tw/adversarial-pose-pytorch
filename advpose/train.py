@@ -42,14 +42,13 @@ netD = HourglassDisNet(
 # make parallel (identity op if cpu)
 netHg = nn.DataParallel(netHg)
 netD = nn.DataParallel(netD)
+# TODO: network arch summary
+# print('    Total params of netHg: %.2fM' % (sum(p.numel() for p in netHg.parameters())/1000000.0))
 
 criterion = nn.MSELoss()
 criterion_D = nn.MSELoss()
 
 kt = FLAGS.kt_init
-
-optimHg = torch.optim.RMSprop(netHg.parameters(), lr=FLAGS.lr, alpha=FLAGS.alpha)
-optimD = torch.optim.Adam(netD.parameters(), lr=FLAGS.lrD, betas=(0.9, 0.999))
 
 # TODO: restoring: model, optim, hyperparameter ...
 if FLAGS.modelCkpt:
@@ -68,8 +67,8 @@ if FLAGS.cuda:
     criterion.cuda()
     criterion_D.cuda()
 
-# TODO: network arch summary
-# print('    Total params of netHg: %.2fM' % (sum(p.numel() for p in netHg.parameters())/1000000.0))
+optimHg = torch.optim.RMSprop(netHg.parameters(), lr=FLAGS.lr, alpha=FLAGS.alpha)
+optimD = torch.optim.Adam(netD.parameters(), lr=FLAGS.lrD, betas=(0.9, 0.999))
 
 log_dir = getLogDir(FLAGS.log_root)
 sumWriter = SummaryWriter(log_dir)

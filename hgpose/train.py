@@ -36,15 +36,13 @@ valid_loader = torch.utils.data.DataLoader(
     valid_set, batch_size=FLAGS.validBatch, shuffle=False,
     num_workers=FLAGS.nThreads, pin_memory=True)
 
-netHg = HourglassNet(
+netHg = nn.DataParallel(HourglassNet(
     nStacks=FLAGS.nStacks, nModules=FLAGS.nModules, nFeat=FLAGS.nFeats,
-    nClasses=train_set.nJoints)  # ref `nClasses` from dataset
+    nClasses=train_set.nJoints))  # ref `nClasses` from dataset
 criterion = nn.MSELoss()
 
-optimHg = torch.optim.RMSprop(
-    netHg.parameters(),
-    lr=FLAGS.lr,
-    alpha=FLAGS.alpha, eps=FLAGS.eps)
+# network arch summary
+print('Total params of netHg: %.2fM' % (sum(p.numel() for p in netHg.parameters())/1000000.0))
 
 # TODO: restore model, optim, hyperparameter ...
 # if FLAGS.netHg:
@@ -54,13 +52,13 @@ optimHg = torch.optim.RMSprop(
 
 if FLAGS.cuda:
     torch.backends.cudnn.benchmark = True
-    # make parallel
-    netHg = nn.DataParallel(netHg)
     netHg.cuda()
     criterion.cuda()
 
-# network arch summary
-print('Total params of netHg: %.2fM' % (sum(p.numel() for p in netHg.parameters())/1000000.0))
+optimHg = torch.optim.RMSprop(
+    netHg.parameters(),
+    lr=FLAGS.lr,
+    alpha=FLAGS.alpha, eps=FLAGS.eps)
 
 log_dir = getLogDir(FLAGS.log_root)
 sumWriter = SummaryWriter(log_dir)
