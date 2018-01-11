@@ -1,6 +1,7 @@
 import os
 import socket
 from datetime import datetime
+from glob import glob
 import torch
 
 def getValue(x):
@@ -27,5 +28,11 @@ def getLogDir(root_dir=None):
 
 def makeCkptDir(log_dir):
     ckpt_dir = os.path.join(log_dir, 'ckpts')
-    os.mkdir(ckpt_dir)
+    if not os.path.exists(ckpt_dir):
+        os.mkdir(ckpt_dir)
     return ckpt_dir
+
+def getLatestCkpt(log_dir, suffix='.pth'):
+    ckpts = glob(os.path.join(log_dir, 'ckpts/*'+suffix))
+    return sorted(ckpts, key=os.path.getmtime, reverse=True)[0]
+

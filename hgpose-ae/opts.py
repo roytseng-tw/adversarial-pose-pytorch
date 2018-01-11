@@ -23,6 +23,8 @@ parser.add_argument('--maxEpochs', type=int, default=150)
 parser.add_argument('--trainBatch', type=int, default=6)
 parser.add_argument('--validBatch', type=int, default=6)
 
+parser.add_argument('--continue_exp', '--c')
+
 parser.add_argument('--epoch_init', type=int, default=0)
 parser.add_argument('--iter_init', type=int, default=0)
 parser.add_argument('--step_init', type=int, default=0)

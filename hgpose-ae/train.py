@@ -10,7 +10,7 @@ sys.path.insert(1, '..')
 import opts
 from src.models.hg_ae import HourglassAENet
 from src.datasets.cocopose_umichvl import COCOPose_Dataset
-from src.utils.misc import getLogDir, makeCkptDir, getValue
+from src.utils.misc import getLogDir, makeCkptDir, getValue, getLatestCkpt
 from loss import calc_loss
 
 # original author's code
@@ -28,10 +28,10 @@ global_step = FLAGS.step_init  # for summary writer (will start on 1)
 train_set = COCOPose_Dataset(
     FLAGS.dataDir, split='train',
     inp_res=FLAGS.inputRes, out_res=FLAGS.outputRes,
-    scale_factor=FLAGS.scale, rot_factor=FLAGS.rotate, max_num_people=FLAGS.maxNumPeople)
+    scale_factor=FLAGS.scale, rot_factor=FLAGS.rotate, max_num_people=FLAGS.maxNumPeople, debug=False)
 # train_set = dp.init()
 train_loader = torch.utils.data.DataLoader(
-    train_set, batch_size=FLAGS.trainBatch, shuffle=False,
+    train_set, batch_size=FLAGS.trainBatch, shuffle=True,
     num_workers=FLAGS.nThreads, pin_memory=True)
 
 # valid_set = COCOPose_Dataset(
@@ -42,9 +42,10 @@ train_loader = torch.utils.data.DataLoader(
 #     valid_set, batch_size=FLAGS.validBatch, shuffle=False,
 #     num_workers=FLAGS.nThreads, pin_memory=True)
 
-# netHg = HourglassAENet(nStacks=FLAGS.nStacks, inp_nf=FLAGS.inpDim, out_nf=FLAGS.outDim)
-netHg = PoseNet(FLAGS.nStacks, FLAGS.inpDim, FLAGS.outDim)
+netHg = HourglassAENet(nStacks=FLAGS.nStacks, inp_nf=FLAGS.inpDim, out_nf=FLAGS.outDim)
+# netHg = PoseNet(FLAGS.nStacks, FLAGS.inpDim, FLAGS.outDim)
 optimHg = torch.optim.Adam(netHg.parameters(), lr=FLAGS.lr)
+
 if FLAGS.cuda:
     torch.backends.cudnn.benchmark = True
     # make parallel
@@ -54,10 +55,17 @@ if FLAGS.cuda:
 # network arch summary
 print('Total params of network: %.2fM' % (sum(p.numel() for p in netHg.parameters()) / 1e6))
 
-log_dir = getLogDir(FLAGS.log_root)
+if FLAGS.continue_exp:
+    log_dir = FLAGS.continue_exp
+    ckpt = torch.load(getLatestCkpt(FLAGS.continue_exp))
+    netHg.load_state_dict(ckpt['netHg'])
+    optimHg.load_state_dict(ckpt['optimHg'])
+    epoch_init = ckpt['epoch'] + 1
+    global_step = ckpt['global_step']
+else:
+    log_dir = getLogDir(FLAGS.log_root)
 sumWriter = SummaryWriter(log_dir, comment=FLAGS.comment)
 ckpt_dir = makeCkptDir(log_dir)
-
 
 def train(epoch, iter_start=0):
     netHg.train()
