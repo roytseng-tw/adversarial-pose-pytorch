@@ -15,7 +15,7 @@ def getValue(x):
         x = x.item()
     return x
 
-def getLogDir(root_dir=None):
+def getLogDir(root_dir=None, comment=''):
     '''Get logging directory for summary writer
     '''
     if not root_dir:
@@ -24,6 +24,8 @@ def getLogDir(root_dir=None):
         root_dir,
         datetime.now().strftime('%b%d-%H-%M-%S') +
         '_' + socket.gethostname())
+    if comment:
+        log_dir += '_' + comment
     return log_dir
 
 def makeCkptDir(log_dir):

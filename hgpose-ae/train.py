@@ -13,9 +13,9 @@ from src.datasets.cocopose_umichvl import COCOPose_Dataset
 from src.utils.misc import getLogDir, makeCkptDir, getValue, getLatestCkpt
 from loss import calc_loss
 
-# original author's code
-from coco_pose import dp
-from models.posenet import PoseNet
+# # original author's code
+# from coco_pose import dp
+# from models.posenet import PoseNet
 
 # Parse arguments
 FLAGS = opts.get_args()
@@ -28,11 +28,11 @@ global_step = FLAGS.step_init  # for summary writer (will start on 1)
 train_set = COCOPose_Dataset(
     FLAGS.dataDir, split='train',
     inp_res=FLAGS.inputRes, out_res=FLAGS.outputRes,
-    scale_factor=FLAGS.scale, rot_factor=FLAGS.rotate, max_num_people=FLAGS.maxNumPeople, debug=False)
+    scale_factor=FLAGS.scale, rot_factor=FLAGS.rotate, max_num_people=FLAGS.maxNumPeople, debug=FLAGS.debug)
 # train_set = dp.init()
 train_loader = torch.utils.data.DataLoader(
     train_set, batch_size=FLAGS.trainBatch, shuffle=True,
-    num_workers=FLAGS.nThreads, pin_memory=True)
+    num_workers=FLAGS.nThreads, pin_memory=FLAGS.pinMem)
 
 # valid_set = COCOPose_Dataset(
 #     FLAGS.dataDir, split='valid',
@@ -44,16 +44,16 @@ train_loader = torch.utils.data.DataLoader(
 
 netHg = HourglassAENet(nStacks=FLAGS.nStacks, inp_nf=FLAGS.inpDim, out_nf=FLAGS.outDim)
 # netHg = PoseNet(FLAGS.nStacks, FLAGS.inpDim, FLAGS.outDim)
-optimHg = torch.optim.Adam(netHg.parameters(), lr=FLAGS.lr)
-
-if FLAGS.cuda:
-    torch.backends.cudnn.benchmark = True
-    # make parallel
-    netHg = nn.DataParallel(netHg)
-    netHg.cuda()
+netHg = nn.DataParallel(netHg)
 
 # network arch summary
 print('Total params of network: %.2fM' % (sum(p.numel() for p in netHg.parameters()) / 1e6))
+
+if FLAGS.cuda:
+    torch.backends.cudnn.benchmark = True
+    netHg.cuda()
+
+optimHg = torch.optim.Adam(netHg.parameters(), lr=FLAGS.lr)
 
 if FLAGS.continue_exp:
     log_dir = FLAGS.continue_exp
@@ -63,9 +63,10 @@ if FLAGS.continue_exp:
     epoch_init = ckpt['epoch'] + 1
     global_step = ckpt['global_step']
 else:
-    log_dir = getLogDir(FLAGS.log_root)
-sumWriter = SummaryWriter(log_dir, comment=FLAGS.comment)
+    log_dir = getLogDir(FLAGS.log_root, comment=FLAGS.comment)
+sumWriter = SummaryWriter(log_dir)
 ckpt_dir = makeCkptDir(log_dir)
+
 
 def train(epoch, iter_start=0):
     netHg.train()
@@ -75,16 +76,19 @@ def train(epoch, iter_start=0):
     pbar_info = tqdm.tqdm(bar_format='{bar}{postfix}')
     for it, sample in enumerate(pbar, start=iter_start):
         global_step += 1
-        image, masks, keypoints, heatmaps = sample
+        if FLAGS.debug:
+            image, masks, keypoints, heatmaps, img_ids = sample
+        else:
+            image, masks, keypoints, heatmaps = sample
         image = Variable(image)
         masks = Variable(masks)
         keypoints = Variable(keypoints)
         heatmaps = Variable(heatmaps)
         if FLAGS.cuda:
-            image = image.cuda(async=True)
-            masks = masks.cuda(async=True)
-            keypoints = keypoints.cuda(async=True)
-            heatmaps = heatmaps.cuda(async=True)
+            image = image.cuda(async=FLAGS.pinMem)
+            masks = masks.cuda(async=FLAGS.pinMem)
+            keypoints = keypoints.cuda(async=FLAGS.pinMem)
+            heatmaps = heatmaps.cuda(async=FLAGS.pinMem)
 
         outputs = netHg(image)
         push_loss, pull_loss, detection_loss = calc_loss(outputs, keypoints, heatmaps, masks)
