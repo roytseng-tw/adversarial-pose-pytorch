@@ -1,9 +1,5 @@
 import os
 import numpy as np
-import skimage as skim
-import skimage.io as skio
-import skimage.color as skcolor
-import skimage.transform as sktf
 import cv2
 import torch
 import torch.utils.data
@@ -62,7 +58,7 @@ def get_mask(img_id):
         if ann['iscrowd']:
             rle = mask.frPyObjects(ann['segmentation'], img_info['height'], img_info['width'])
             m += mask.decode(rle)  # mask: {0, 1} unit8
-    return m < 0.5  # False for crowd, True for non-crowd. 
+    return m < 0.5  # False for crowd, True for non-crowd.
 
 def get_anns(img_id):
     anns = coco.loadAnns(coco.getAnnIds(imgIds=img_id))
@@ -86,7 +82,7 @@ def loadImage(imgId, img_root, split):
         img_info = coco.loadImgs(imgId)[0]
         imgname = img_info['file_name']
         impath = os.path.join(img_root, imgname)
-        return skio.imread(impath)
+        return cv2.imread(impath, cv2.IMREAD_COLOR)[:, :, ::-1]
 
 def kpts_affine(kpts, mat):
     '''Transfrom keypoints
@@ -183,14 +179,14 @@ class COCOPose_Dataset(torch.utils.data.Dataset):
 
     def preprocess(self, data):
         # random hue and saturation
-        data = skcolor.rgb2hsv(data)
+        data = cv2.cvtColor(data, cv2.COLOR_RGB2HSV)
         delta = (rand() * 2 - 1) * 0.2
         data[:, :, 0] = np.mod(data[:, :, 0] + (delta * 360 + 360.), 360.)
 
         delta_sature = rand() + 0.5
         data[:, :, 1] *= delta_sature
         data[:, :, 1] = np.maximum(np.minimum(data[:, :, 1], 1), 0)
-        data = skcolor.hsv2rgb(data)
+        data = cv2.cvtColor(data, cv2.COLOR_HSV2RGB)
 
         # adjust brightness
         delta = (rand() * 2 - 1) * 0.3
@@ -206,8 +202,6 @@ class COCOPose_Dataset(torch.utils.data.Dataset):
     def __getitem__(self, index):
         img_id = self.img_ids[index]
         im = loadImage(img_id, self.image_folder, self.split)
-        if im.ndim == 2:
-            im = np.tile(im[..., np.newaxis], [1, 1, 3])
 
         loss_mask = get_mask(img_id)
         anns = get_anns(img_id)
@@ -226,14 +220,10 @@ class COCOPose_Dataset(torch.utils.data.Dataset):
         center[1] += dy * center[1]
 
         tform = get_transform(center, scale, rot, (self.out_res, self.out_res))
-        # tform_inv = np.linalg.inv(tform)
-        # loss_mask = sktf.warp(loss_mask, tform_inv, output_shape=(self.out_res, self.out_res))
         loss_mask = cv2.warpAffine(loss_mask.astype(np.uint8)*255, tform[:2], (self.out_res, self.out_res)) / 255
         loss_mask = (loss_mask > 0.5).astype(np.float32)
         keypoints[:, :, :2] = kpts_affine(keypoints[:, :, :2], tform[:2])
 
-        # tform_inv = get_transform(center, scale, rot, (self.inp_res, self.inp_res), invert=True)
-        # im = sktf.warp(im, tform_inv, output_shape=(self.inp_res, self.inp_res))
         tform = get_transform(center, scale, rot, (self.inp_res, self.inp_res))
         im = cv2.warpAffine(im, tform[:2], (self.inp_res, self.inp_res)) / 255
 
