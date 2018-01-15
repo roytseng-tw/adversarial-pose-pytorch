@@ -24,13 +24,13 @@ parser.add_argument('--inpDim', type=int, default=256)
 parser.add_argument('--outDim', type=int, default=68)
 
 # Dataloader
-parser.add_argument('--nThreads', type=int, default=6)
 parser.add_argument('--pinMem', action='store_true', help='dataloader pin memory')
+parser.add_argument('--nThreads', type=int, default=6)
 
 # Training
-parser.add_argument('--maxEpochs', type=int, default=150)
 parser.add_argument('--trainBatch', type=int, default=6)
 parser.add_argument('--validBatch', type=int, default=6)
+parser.add_argument('--maxEpochs', type=int, default=150)
 
 parser.add_argument('--continue_exp', '--c')
 
