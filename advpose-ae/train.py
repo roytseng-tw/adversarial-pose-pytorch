@@ -153,10 +153,11 @@ def train(epoch, iter_start=0):
         pbar_info.set_postfix_str(toprint)
         pbar_info.update()
 
+        del outputs, push_loss, pull_loss, detection_loss, loss_hg, \
+            d_real, d_fake, loss_d_real, loss_d_fake, loss_d
+
     pbar.close()
     pbar_info.close()
-    del outputs, push_loss, pull_loss, detection_loss, loss_hg, \
-        d_real, d_fake, loss_d_real, loss_d_fake, loss_d
 
 
 def save(epoch):
