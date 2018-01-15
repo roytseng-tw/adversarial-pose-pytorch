@@ -9,7 +9,7 @@ Place coco annotations in `data/coco/annotations` and images in `data/coco/image
 ## Folder Structure
 - `data`: put the training / testing data here
 - `src`:
-    - `models`: model definition
+    - `models`: model definition
     - `datasets`: dataset definition
     - `extensions`:
         - `AE`: code from [Associative Embedding](https://github.com/umich-vl/pose-ae-train).  
