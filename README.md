@@ -2,9 +2,9 @@
 This repository implements pose estimation methods in PyTorch.
 
 ## Data
-The file `data/lsp_mpii.h5` contains the annotations of MPII, LSP training data and LSP test data.  
+The file [lsp_mpii.h5](data/lsp_mpii.h5) contains the annotations of MPII, LSP training data and LSP test data.  
 Place LSP, MPII images in `data/LSP/images` and `data/mpii/images`.  
-Place coco annotations in `data/coco/annotations` and images in `data/coco/images`, as suggested by [cocoapi](https://github.com/cocodataset/cocoapi). The file `valid_id` contains the image_ids used for validation.
+Place coco annotations in `data/coco/annotations` and images in `data/coco/images`, as suggested by [cocoapi](https://github.com/cocodataset/cocoapi). The file [valid_id](data/coco/valid_id) contains the image_ids used for validation.
 
 ## Folder Structure
 - `data`: put the training / testing data here
