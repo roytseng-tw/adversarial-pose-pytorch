@@ -46,7 +46,10 @@ netD = nn.DataParallel(netD)
 # print('    Total params of netHg: %.2fM' % (sum(p.numel() for p in netHg.parameters())/1000000.0))
 
 criterion = nn.MSELoss()
-criterion_D = nn.MSELoss()
+def criterion_D(pred, gt):
+    l = (pred - gt)**2
+    l = l.mean()
+    return l
 
 kt = FLAGS.kt_init
 
@@ -65,7 +68,6 @@ if FLAGS.cuda:
     netHg.cuda()
     netD.cuda()
     criterion.cuda()
-    criterion_D.cuda()
 
 optimHg = torch.optim.RMSprop(netHg.parameters(), lr=FLAGS.lr, alpha=FLAGS.alpha)
 optimD = torch.optim.Adam(netD.parameters(), lr=FLAGS.lrD, betas=(0.9, 0.999))
@@ -103,10 +105,10 @@ def run(epoch, iter_start=0):
 
         input_fake = torch.cat([image_s, outputs[-1]], dim=1)
         d_fake = netD(input_fake)
-        loss_d_fake = criterion_D(d_fake, label)
+        loss_d_fake = criterion_D(d_fake, outputs[-1])
 
         loss_d = loss_d_real - kt * loss_d_fake
-        loss_hg = loss_hg_content + FLAGS.lambda_G * loss_d_fake.detach()
+        loss_hg = loss_hg_content + FLAGS.lambda_G * loss_d_fake
 
         ''' Backward seperatedly '''
         optimD.zero_grad()

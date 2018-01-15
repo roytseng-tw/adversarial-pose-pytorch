@@ -21,9 +21,9 @@ parser.add_argument('--alpha', type=float, default=0.99)
 parser.add_argument('--lrD', type=float, default=8e-5)
 
 parser.add_argument('--lambda_G', type=float, default=0.0001)
-parser.add_argument('--lambda_kt', type=float, default=0.001, help='Weight to clip k_t')
 parser.add_argument('--gamma', type=float, default=0.5, help='Balance weight of real and fake')
-parser.add_argument('--kt_init', type=float, default=0.0, help='Balance weight of real and fake')
+parser.add_argument('--lambda_kt', type=float, default=0.001, help='Weight to clip k_t')
+parser.add_argument('--kt_init', type=float, default=0.0)
 
 # Training
 parser.add_argument('--maxEpoch', type=int, default=100)
