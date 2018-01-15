@@ -225,7 +225,7 @@ class COCOPose_Dataset(torch.utils.data.Dataset):
         keypoints[:, :, :2] = kpts_affine(keypoints[:, :, :2], tform[:2])
 
         tform = get_transform(center, scale, rot, (self.inp_res, self.inp_res))
-        im = cv2.warpAffine(im, tform[:2], (self.inp_res, self.inp_res))
+        im = cv2.warpAffine(im, tform[:2], (self.inp_res, self.inp_res)).astype(np.float32) / 255
 
         # Flip LR
         if rand() < 0.5:
@@ -236,7 +236,7 @@ class COCOPose_Dataset(torch.utils.data.Dataset):
 
         heatmaps = self.generateHeatmaps(keypoints)
         keypoints = self.fliterKeypoints(keypoints, self.out_res)  # TODO understand the format, related to the AELoss
-        im = self.preprocess(im).transpose(2, 0, 1) / 255
+        im = self.preprocess(im).transpose(2, 0, 1)
 
         if self.debug:
             return (im.astype(np.float32),
