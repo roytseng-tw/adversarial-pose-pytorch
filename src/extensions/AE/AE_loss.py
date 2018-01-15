@@ -1,9 +1,8 @@
 import torch
-import os
-import time
 from torch.autograd import Function
 from torch import nn
-from extensions.AE._ext import my_lib
+from ._ext import my_lib
+
 
 class AElossFunction(Function):
     def forward(self, tags, keypoints):
@@ -18,14 +17,14 @@ class AElossFunction(Function):
     def backward(self, grad_output):
         tags, keypoints = self.saved_tensors
         grad_input = torch.zeros(tags.size()).cuda(tags.get_device())
-        #grad_input = tags.new(tags.size()).zero_()
+        # grad_input = tags.new(tags.size()).zero_()
         my_lib.my_lib_loss_backward(tags, keypoints, self.mean_tags, grad_output, grad_input)
         self.mean_tags = None
         return grad_input, torch.zeros(keypoints.size())
 
-class AEloss(nn.Module):
-    def forward(self, input, input1):
-        if not input.is_cuda:
-            input = input.cuda()
-        output = AElossFunction()(input, input1)
-        return output
+
+def AEloss(tags, keypoints):
+    if not tags.is_cuda:
+        tags = tags.cuda()
+    output = AElossFunction()(tags, keypoints)
+    return output
