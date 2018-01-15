@@ -167,8 +167,9 @@ Session.vim
 tags
 
 runs/
-data/
 **/codetest/
 **/codetest_*.py
 **/_ext
 **/*.o
+
+/data/LIP
