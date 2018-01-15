@@ -137,4 +137,4 @@ if __name__ == '__main__':
         train(ep, iter_init)
         # valid()
         save(ep)
-        # iter_init = 0  # reset after first epoch
+        iter_init = 0  # reset after first epoch
