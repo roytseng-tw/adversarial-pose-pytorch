@@ -16,7 +16,7 @@ Place coco annotations in `data/coco/annotations` and images in `data/coco/image
         torch.autograd.Function extension for computing the loss.
     - `utils`  
 
-All the other folders represents different tasks. Each contains a training script `train.py` and definition of command-line options `opts.py`.
+All the other folders represents different **tasks**. Each contains a training script `train.py` and definition of command-line options `opts.py`.
 - `hgpose`: training code for [Stacked Hourglass Networks for Human Pose Estimation](https://arxiv.org/abs/1603.06937). Single-Person.
 
 - `hgpose-ae`: training code for [Associative Embedding: End-to-end Learning for Joint Detection and Grouping](https://arxiv.org/abs/1611.05424). Multi-Person
