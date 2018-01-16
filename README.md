@@ -1,10 +1,19 @@
 # Adversarial Pose Estimation
 This repository implements pose estimation methods in PyTorch.
 
-## Data
+## Getting Started
+### Data
 The file [lsp_mpii.h5](data/lsp_mpii.h5) contains the annotations of MPII, LSP training data and LSP test data.  
 Place LSP, MPII images in `data/LSP/images` and `data/mpii/images`.  
 Place coco annotations in `data/coco/annotations` and images in `data/coco/images`, as suggested by [cocoapi](https://github.com/cocodataset/cocoapi). The file [valid_id](data/coco/valid_id) contains the image_ids used for validation.
+
+### Compile the extension
+Compile the C implementation of the associative embedding loss. Code credit [umich-vl/pose-ae-train](https://github.com/umich-vl/pose-ae-train).
+```
+cd src/extensions/AE
+python build.py  # be sure to have visible cuda device
+```
+
 
 ## Folder Structure
 - `data`: put the training / testing data here
