@@ -1,6 +1,7 @@
 import os
 import sys
 import tqdm
+import numpy as np
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
@@ -92,45 +93,34 @@ def run(epoch, iter_start=0):
             label = label.cuda(async=True)
             image_s = image_s.cuda()
 
-        # generator
         outputs = netHg(image)
-        loss_hg_content = 0
-        for out in outputs:  # TODO: speed up with multiprocessing map?
-            loss_hg_content += criterion(out, label)
+        out = torch.stack(outputs, dim=0)
+        loss_hg_content = ((out - label.expand_as(out)) ** 2).view(len(outputs), -1).mean(dim=1).sum()
 
         # Discriminator
         input_real = torch.cat([image_s, label], dim=1)
-        d_real = netD(input_real)
-        loss_d_real = criterion_D(d_real, label)
-
         input_fake = torch.cat([image_s, outputs[-1]], dim=1)
-        d_fake = netD(input_fake)
-        loss_d_fake = criterion_D(d_fake, outputs[-1])
 
+        loss_d_real = criterion_D(netD(input_real), label)
+        loss_d_fake = criterion_D(netD(input_fake.detach()), outputs[-1].detach())
         loss_d = loss_d_real - kt * loss_d_fake
-        loss_hg = loss_hg_content + FLAGS.lambda_G * loss_d_fake
 
-        ''' Backward seperatedly '''
         optimD.zero_grad()
-        loss_d.backward(retain_graph=True)
+        loss_d.backward()
         optimD.step()
+
+        # Generator
+        loss_g = criterion_D(netD(input_fake), outputs[-1])
+        loss_hg = loss_hg_content + FLAGS.lambda_G * loss_g
+
         optimHg.zero_grad()
         loss_hg.backward()
-        # optimD.step()
         optimHg.step()
-
-        ''' Backward all at once (slightly different ?) '''
-        # loss_total = loss_d + loss_hg
-        # optimD.zero_grad()
-        # optimHg.zero_grad()
-        # loss_total.backward()
-        # optimD.step()
-        # optimHg.step()
 
         # update kt
         loss_d_real_ = getValue(loss_d_real)
         loss_d_fake_ = getValue(loss_d_fake)
-        balance = FLAGS.gamma * loss_d_real_ - loss_d_fake_ / FLAGS.lambda_G  # dividing is Good?
+        balance = FLAGS.gamma * loss_d_real_ - loss_d_fake_ # / FLAGS.lambda_G  # Is this dividing good? Original impl. has this
         kt = kt + FLAGS.lambda_kt * balance
         kt = min(1, max(0, kt))
         measure = loss_d_real_ + abs(balance)
@@ -154,6 +144,8 @@ def run(epoch, iter_start=0):
             'balance': balance,
             'loss_hg': getValue(loss_hg),
             'loss_d': getValue(loss_d),
+            'loss_d_fake': loss_d_fake_,
+            'loss_d_real': loss_d_real_,
             'acc': accs[0],
         })
         pbar_info.update()
