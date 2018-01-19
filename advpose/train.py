@@ -43,8 +43,9 @@ netD = HourglassDisNet(
 # make parallel (identity op if cpu)
 netHg = nn.DataParallel(netHg)
 netD = nn.DataParallel(netD)
-# TODO: network arch summary
-# print('    Total params of netHg: %.2fM' % (sum(p.numel() for p in netHg.parameters())/1000000.0))
+
+print('    Total params of netHg: %.2fM' % (sum(p.numel() for p in netHg.parameters()) / 1e6))
+print('    Total params of netD: %.2fM' % (sum(p.numel() for p in netD.parameters()) / 1e6))
 
 criterion = nn.MSELoss()
 def criterion_D(pred, gt):
