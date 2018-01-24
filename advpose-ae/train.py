@@ -1,6 +1,7 @@
 import os
 import sys
 import tqdm
+import cv2
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
@@ -173,6 +174,7 @@ def save(epoch):
 
 
 if __name__ == '__main__':
+    cv2.setNumThreads(0)  # disable multithreading in OpenCV for main thread to avoid problems after fork
     for ep in range(epoch_init, FLAGS.maxEpochs):
         train(ep, iter_init)
         # valid()

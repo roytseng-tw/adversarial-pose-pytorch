@@ -200,6 +200,7 @@ class COCOPose_Dataset(torch.utils.data.Dataset):
         return data
 
     def __getitem__(self, index):
+        cv2.setNumThreads(-1)  # re-enable multithreading in OpenCV for child process
         img_id = self.img_ids[index]
         im = loadImage(img_id, self.image_folder, self.split)
 
